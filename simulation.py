@@ -10,6 +10,11 @@ Created on Wed Aug 14 14:59:26 2019
 
 # TO-DO: better ways of analysing the outcome
 
+# TO-DO: give forecasters utility functions which they optimise, instead of just randomly sampling their forecasts (e.g. that way they
+# hijack non-proper scoring functions). 
+
+# TO-DO: use more sensible functions for sampling parameters, opinions, forecasts, etc.
+
 # TIP: try setting self.points for forecasters to a function of self-values and see how that influences the leaderboard
 
 import numpy as np
