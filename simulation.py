@@ -5,31 +5,6 @@ Created on Wed Aug 14 14:59:26 2019
 @author: Jakey
 """
 
-# Currently this is not simulating one question I'm interested in: the trade-off between which
-# questions forecasters choose to answer, depending on their values?
-
-# TODO: better ways of analysing the outcome
-
-# TODO: give forecasters utility functions which they optimise, instead of just randomly sampling their forecasts (e.g. that way they
-# hijack non-proper scoring functions).
-
-# TODO: use more sensible functions for sampling parameters, opinions, forecasts, etc.
-
-# TIP: try setting self.points for forecasters to a function of self-values and see how that influences the leaderboard
-
-# What are the hypothesis this simulation is testing?
-#   1) trading off attention across different questions
-#   when is the equilibrium for important questions to dominate?
-#       need questions to have importance parameter, and "fun" parameter
-#       need agents to have different preferences in their upvoting
-#   2) can you get high points by being right on trivial questions?
-#       need mechanism whereby they trade-off which questions they answer
-#   are you going to win by being right on important questions?
-#   3) something something efficient frontier of values and epistemics
-
-
-
-
 import numpy as np
 import math
 
@@ -78,7 +53,7 @@ class forecaster:
 
     def __str__(self):
         return "Forecaster {}, with epistemics: {}, values: {}, humour: {}, points: {}".format(
-                np.round(self.id,1), np.round(self.epistemics,1), np.round(self.values,1), 
+                np.round(self.id,1), np.round(self.epistemics,1), np.round(self.values,1),
                 np.round(self.humour,1), np.round(self.points,1))
 
     def vote_power(self):
@@ -91,7 +66,7 @@ class forecaster:
         # What vote will a forecaster assign to a question?
         importance_opinion = np.random.normal(question.importance, 10/self.values)
         fun_opinion = np.random.normal(question.fun, 10/self.humour)
-        w = importance_opinion / (importance_opinion+fun_opinion)
+        w = self.values / (self.values + self.humour)
         opinion = w*importance_opinion + (1-w)*fun_opinion
 
         story = np.random.binomial(1,0.003)
@@ -203,11 +178,11 @@ if run_simulation:
         print("\n\n")
 
         # TODO DISPLAY GRAPHS
-        #   1) Occasionally, histogram over forecaster sampled opinions about a question's 
+        #   1) Occasionally, histogram over forecaster sampled opinions about a question's
         #       fun and importance, along with a vertical line showing true values
-        #   2) Occasionally the following correlations: question points x importance, 
+        #   2) Occasionally the following correlations: question points x importance,
         #       question points x fun, importance x number of  predictions, fun x number of predictions
-        #   3) For each of those correlations, after the final round is finished, 
+        #   3) For each of those correlations, after the final round is finished,
         #       display a line graph showing how the round correlation coefficient evolves over time over rounds
 
 
