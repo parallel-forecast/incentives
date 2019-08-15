@@ -108,13 +108,19 @@ class forecaster:
     def choose_Qs(self, available_Qs):
         
         # Create dict of question_index:points
-        point_dict = { i:available_Qs[i].points for i in range(len(available_Qs)) } 
+        point_dict = { i:self.EV_of_predicting(available_Qs[i]) for i in range(len(available_Qs)) } 
         # Pick the curret top half of questions to forecast
         point_ordering = sorted(point_dict.items(), key = lambda kv:(kv[1], kv[0]), reverse=True)
 
         chosen_Qs = [available_Qs[Q_id] for Q_id, points in point_ordering[0:( math.floor( len(available_Qs)/2 ) )] ]
 
         return chosen_Qs, point_ordering
+    
+    def EV_of_predicting(self, question):
+        # The expected value of predicting on this question for this forecaster. 
+        # Should take into account: edge over crowd + question points
+        # TODO
+        return question.points
 
 
 forecasters = [forecaster(sample_epistemics(), sample_values(), sample_humour(), i) for i in range(50)]
