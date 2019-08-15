@@ -105,6 +105,18 @@ class forecaster:
         question.predictions[self.id] = prediction
         return prediction
 
+    def choose_Qs(self, available_Qs):
+        
+        # Create dict of question_index:points
+        point_dict = { i:available_Qs[i].points for i in range(len(available_Qs)) } 
+        # Pick the curret top half of questions to forecast
+        point_ordering = sorted(point_dict.items(), key = lambda kv:(kv[1], kv[0]), reverse=True)
+
+        chosen_Qs = [available_Qs[Q_id] for Q_id, points in point_ordering[0:( math.floor( len(available_Qs)/2 ) )] ]
+
+        return chosen_Qs, point_ordering
+
+
 forecasters = [forecaster(sample_epistemics(), sample_values(), sample_humour(), i) for i in range(50)]
 
 # Question class
@@ -134,30 +146,27 @@ if run_simulation:
         Qs.append( new_Qs ) # I think this saves a pointer rather than copy, but not sure. Otherwise should replace new_Qs with Qs[r] below
 
         for f in forecasters:
+
+            # Vote on Qs
             for q in new_Qs:
                 q.points += f.sample_opinion(q)[1] #index 1 as the second output is the vote
 
-            # point ordering
-            point_dict = { i:new_Qs[i].points for i in range(len(new_Qs)) } # Create dict of points:index
-            # Pick the curret top half of questions to forecast
-            point_ordering = sorted(point_dict.items(), key = lambda kv:(kv[1], kv[0]), reverse=True)
-            
-            for Q_id, points in point_ordering[0:( math.floor( len(new_Qs)/2 ) )]:
-                forecast = f.predict( new_Qs[Q_id] )
-                
-            # Why does point_dict only have len = 6? rather than 10?
-                
+            # Choose Qs to predct
+            chosen_Qs, point_ordering = f.choose_Qs( new_Qs )
+            for q in chosen_Qs:
+                f.predict( q )
+
         print("Round ", r, " question ranking:\n\n")
         for Q_id, points in point_ordering:
-            print( ("Question_id", Q_id, "Points", np.round(new_Qs[Q_id].points), 
-                    "Importance", np.round(new_Qs[Q_id].importance), "fun", np.round(new_Qs[Q_id].fun), 
+            print( ("Question_id", Q_id, "Points", np.round(new_Qs[Q_id].points),
+                    "Importance", np.round(new_Qs[Q_id].importance), "fun", np.round(new_Qs[Q_id].fun),
                     "Number of predictions", len(new_Qs[Q_id].predictions)) )
         print("\n\n")
-        
-        # Should display: 
+
+        # Should display:
         #   * histogram over forecaster opinion, along with true values
         #   * correlations: points x imp, points x fun, imp x num_preds, fun x num_preds
-        
+
         #Award points
         for q in new_Qs:
             for f_id in q.predictions:
@@ -167,27 +176,13 @@ if run_simulation:
                 f = forecasters[f_id]
                 f.points += imp_score
                 f.history.append( [q, {"forecast": prediction, "score": score, "imp_weighted_score": imp_score} ] )
-            
-
-#        for q in new_Qs:
-#            # Forecasters vote on questions
-#            for f in forecasters:
-#                q.points += f.sample_opinion(q)[1] #the second output is the vote
-#
-#            # Forecasters forecast and get points
-#            for f in forecasters:
-#                forecast = f.predict(q)
-#                score = q.score(forecast)
-#                imp_score = imp_weighted_score(q.points,score)
-#                f.points += imp_score
-#                f.history.append( [q, {"forecast": forecast, "score": score, "imp_weighted_score": imp_score} ] )
 
 leaderboard = {f.points:[f, f.values, f.epistemics, f.humour] for f in forecasters}
 order = sorted(leaderboard)
 
 for i in order :
-    print (("forecaster_id", leaderboard[i][0].id, "points", np.round(i,1), 
-            "values", np.round(leaderboard[i][1],1), "epistemics", np.round(leaderboard[i][2],1), 
+    print (("forecaster_id", leaderboard[i][0].id, "points", np.round(i,1),
+            "values", np.round(leaderboard[i][1],1), "epistemics", np.round(leaderboard[i][2],1),
             "humour", np.round(leaderboard[i][3],1)),    end ="\n\n")
 
 #
