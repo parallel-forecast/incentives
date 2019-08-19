@@ -59,12 +59,51 @@ def sigmoid(x, derivative=False):
         return sigm * (1. - sigm)
     return sigm
 
+def linreg (x,y) :      # takes 
+
+    # error handling
+    if (len(x) != len(y)) :
+        print("incompatible vector sizes in linear regression, exiting")
+        return 0
+    
+    if (len(x) == 0 || len(y) == 0)
+        print("linear regression failure, vector size is 0")
+        retirn 0
+
+    # special cases
+    if (len(y) == 1)
+        slope = y
+
+        return y
+
+    # calculate linear regression
+    xavg = np.mean(x)
+    yavg = np.mean(y)
+
+    a = 0
+    b = 0
+
+    n = len(x)
+
+    for k in range n :
+        a += (y[k] - yavg) * (x[k] - xavg)
+        b += (x[k] - xavg)**2
+
+    slope = a / b
+
+    return slope
+
+
 def corr (x,y) :     # calculate correlation coeficient, takes np.arrays
     
     # error handling
     if len(x) != len (y) :
         print("incompatible vector sizes in correlation function, exiting function")
-        return 0;
+        return 0
+    
+    if (len(x) == 0 || len(y) == 0)
+        print("correlation failure, vector size is 0")
+        return 0
 
     # calculate parts
     n = len(x)
