@@ -3,9 +3,18 @@
 Created on Wed Aug 14 14:59:26 2019
 
 @author: Jakey
+
+Notes by Dave:
+    did some ugly stuff... forecaster data is saved within the
+    forecaster class, wheras question data is saved in a global
+    container. consider generating questions and forecasters prior
+    to loop, will save CPU time and will make code nicer, but
+    will cost some memory.
 """
 
 import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt     # for plotting
 import math
 
 # Parameters
@@ -40,6 +49,25 @@ def sigmoid(x, derivative=False):
         return sigm * (1. - sigm)
     return sigm
 
+def corr (x,y) :     # calculate correlation coeficient, takes np.arrays
+    
+    # error handling
+    if len(x) != len (y) :
+        print("incompatible vector sizes in correlation function, exiting function")
+        return 0;
+
+    # calculate parts
+    n = len(x)
+    xysum = np.sum(x*y)
+    xsum = np.sum(x)
+    ysum = np.sum(y)
+    xsum2 = np.sum(x**2)
+    ysum2 = np.sum(y**2)
+
+    # calculate correlation
+    corr = (n*xysum - xsum*ysum)/np.sqrt((n*xsum2-xsum**2)*(n*ysum2-ysum**2))
+
+    return corr
 
 # Forecaster class
 class forecaster:
@@ -49,6 +77,7 @@ class forecaster:
         self.humour = humour
         self.points = 0
         self.history = []
+        self.archive = []       # for saving data
         self.id = ID
 
     def __str__(self):
@@ -68,6 +97,8 @@ class forecaster:
         fun_opinion = np.random.normal(question.fun, 10/self.humour)
         w = self.values / (self.values + self.humour)
         opinion = w*importance_opinion + (1-w)*fun_opinion
+        
+        self.archive.append([importance_opinion,fun_opinion])
 
         story = np.random.binomial(1,0.003)
 
@@ -146,28 +177,45 @@ Qs = []
 run_simulation = True
 
 # Iterate over rounds
+
+qarchive = []
+
 if run_simulation:
     for r in range(rounds):
 
         # Generate new questions
         new_Qs = [Q(sample_UB_accuracy(), sample_importance(), sample_fun()) for i in range(Qs_per_round)]
         Qs.append( new_Qs ) # I think this saves a pointer rather than copy, but not sure. Otherwise should replace new_Qs with Qs[r] below
-
+        
+            
         for f in forecasters:
 
             # Vote on Qs
             for q in new_Qs:
                 q.points += f.sample_opinion(q)[1] #index 1 as the second output is the vote
-
+            
             # Choose Qs to predct
             chosen_Qs = f.choose_Qs( new_Qs )
             for q in chosen_Qs:
                 f.predict( q )
 
+
         print("Round ", r, " question ranking:\n\n")
 
         # Create dict of question_index:points
         point_dict = { i:new_Qs[i].points for i in range(len(new_Qs)) }
+        
+        # saving data for later
+        book = []
+        
+        for Q_id in range (len(new_Qs)) :
+            vals = [Q_id, np.round(new_Qs[Q_id].points) ,np.round(new_Qs[Q_id].importance), np.round(new_Qs[Q_id].fun)]
+            
+            book.append(vals)
+
+        qarchive.append(book)
+        
+
         # Pick the curret top half of questions to forecast
         point_ordering = sorted(point_dict.items(), key = lambda kv:(kv[1], kv[0]), reverse=True)
 
@@ -185,6 +233,7 @@ if run_simulation:
         #   3) For each of those correlations, after the final round is finished,
         #       display a line graph showing how the round correlation coefficient evolves over time over rounds
 
+        # Some intermediate graphs
 
         #Award points
         for q in new_Qs:
@@ -205,3 +254,69 @@ for i in order :
             "humour", np.round(leaderboard[i][3],1)),    end ="\n\n")
 
 #DISPLAY GRAPHS
+
+# Scatter plots and correlations 
+
+qarchive = np.array(qarchive)   # transform into numpy array for easier maniplulation
+
+blockid = 9
+
+qblock = qarchive[blockid]
+
+pts = qblock[:,1]
+imps = qblock[:,2]
+funs = qblock[:,3]
+
+corr_imppts = corr(imps,pts)
+
+fig2, ax = plt.subplots()
+ax.plot(imps,pts,'bo')
+ax.set(xlabel='importance')
+ax.set(ylabel='points')
+ax.set(title='scatter plot with r = {}'.format(corr_imppts))
+
+fig2.savefig("scatterplot.png",dpi=600)
+
+# histograms
+
+# slice data
+blockid = 9     # 0 indexed question set selector 
+qid = 9         # 0 indexed question selector 
+
+trueimp = imps[qid]     # warning, must be before imps are cleared
+truefun = funs[qid]
+
+# get containers
+imps = []
+funs = []
+
+# fill containers with data
+for f in forecasters :
+    imps.append(f.archive[blockid*Qs_per_round+qid][0])
+    funs.append(f.archive[blockid*Qs_per_round+qid][1])
+
+nbins = 10      # arbitrary, sort of...
+
+# make histograms
+
+fig1, (ax1, ax2) = plt.subplots(nrows = 2)
+
+n,f1,patches = ax1.hist(imps,nbins,edgecolor='black')
+n,f2,patches = ax2.hist(funs,nbins,edgecolor='black')
+
+ax1.axvline(x=trueimp,color='r',linestyle='dashed',linewidth=1)
+ax2.axvline(x=truefun,color='r',linestyle='dashed',linewidth=1)
+
+ax1.set(xlabel="importance")
+ax1.set(ylabel="fequency")
+
+ax2.set(xlabel="fun")
+ax2.set(ylabel="frequency")
+
+fig1.subplots_adjust(hspace=0.45)
+
+fig1.savefig("histogram.png",dpi=600)
+
+# plt.show() # uncomment for showing plot at end of run
+
+
