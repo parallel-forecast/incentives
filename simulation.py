@@ -10,6 +10,9 @@ Notes by Dave:
     container. consider generating questions and forecasters prior
     to loop, will save CPU time and will make code nicer, but
     will cost some memory.
+
+    * consider changing linear fit for sklearn, less modular, 
+      but more features and shorter code
 """
 
 import numpy as np
@@ -59,19 +62,19 @@ def sigmoid(x, derivative=False):
         return sigm * (1. - sigm)
     return sigm
 
-def linreg (x,y) :      # takes 
+def linreg (x,y) :      # takes np arrays
 
     # error handling
     if (len(x) != len(y)) :
         print("incompatible vector sizes in linear regression, exiting")
         return 0
     
-    if (len(x) == 0 || len(y) == 0)
+    if (len(x) == 0 or len(y) == 0) :
         print("linear regression failure, vector size is 0")
-        retirn 0
+        return 0
 
     # special cases
-    if (len(y) == 1)
+    if (len(y) == 1) :
         slope = y
 
         return y
@@ -85,7 +88,7 @@ def linreg (x,y) :      # takes
 
     n = len(x)
 
-    for k in range n :
+    for k in range(n) :
         a += (y[k] - yavg) * (x[k] - xavg)
         b += (x[k] - xavg)**2
 
@@ -93,6 +96,14 @@ def linreg (x,y) :      # takes
 
     return slope
 
+def lin_intersect (x,y,k) :     # calculates intersection for linear regression
+    xsum = np.sum(x)
+    ysum = np.sum(y)
+    n = len(x)
+
+    intersect = (ysum - k*xsum) / n
+
+    return intersect
 
 def corr (x,y) :     # calculate correlation coeficient, takes np.arrays
     
@@ -101,7 +112,7 @@ def corr (x,y) :     # calculate correlation coeficient, takes np.arrays
         print("incompatible vector sizes in correlation function, exiting function")
         return 0
     
-    if (len(x) == 0 || len(y) == 0)
+    if (len(x) == 0 or len(y) == 0) :
         print("correlation failure, vector size is 0")
         return 0
 
@@ -341,13 +352,18 @@ pts = qblock[:,1]
 imps = qblock[:,2]
 funs = qblock[:,3]
 
-corr_imppts = corr(imps,pts)
+imps_corr = corr(imps,pts)
+imps_linreg = linreg(imps,pts)
+imps_intsec = lin_intersect(imps,pts,imps_linreg)
+
+impvals = np.arange( 0.0, np.amax(imps), 0.1 )
 
 fig2, ax = plt.subplots()
 ax.plot(imps,pts,'bo')
+ax.plot(impvals, imps_linreg*impvals + imps_intsec,'red',linestyle='dashed')
 ax.set(xlabel='importance')
 ax.set(ylabel='points')
-ax.set(title='scatter plot with r = {}'.format(corr_imppts))
+ax.set(title='scatter plot with r = {}'.format(imps_corr))
 
 fig2.savefig("scatterplot.png",dpi=600)
 
