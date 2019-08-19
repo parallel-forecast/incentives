@@ -15,6 +15,8 @@ Notes by Dave:
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt     # for plotting
+from scipy.optimize import minimize
+from scipy.stats import truncnorm
 import math
 
 # Parameters
@@ -36,9 +38,17 @@ def sample_importance():
 def sample_fun():
     return 10*np.random.lognormal()
 
+optimisation_mode = True
+if optimisation_mode:
+    print("Running in optimisation mode, where forecasters explore prediction space"
+          "to maximise points instead of just being truthful.")
+
 # Functions
-def scoring_function(prediction, outcome):
-    return math.log(abs( 1-outcome - prediction)/0.5)
+def scoring_function(prediction, outcome, function="log"):
+    if function == "log":
+        return math.log(abs( 1-outcome - prediction)/0.5)
+    elif function == "linear":
+        return abs(prediction-outcome)
 
 def imp_weighted_score(importance, score):
     return importance*score
@@ -116,16 +126,23 @@ class forecaster:
         return opinion, vote
 
     def predict(self, question, just_considering_it=False):
-        valid_prediction = False
-        while valid_prediction == False:
-            prediction = np.random.normal(question.outcome, 0.05*(1/self.epistemics))
-            if 0 < prediction < 1:
-                valid_prediction = True
+#        valid_prediction = False
+#        
+#        while valid_prediction == False:
+#            prediction = np.random.normal(question.outcome, 0.05*(1/self.epistemics))
+#            if 0 < prediction < 1:
+#                valid_prediction = True
+        
+        # TODO add proper Bayesian belief forming process
+        # TODO fix mean and std of this one
+        true_belief = truncnorm.rvs(0.001,0.999)
+        
+     #   strategic_prediction = minimize(-scoring_function, true_belief, method='nelder-mead', options={'xtol': 1e-8, 'disp': True}, bounds=(0.001,0.999))
 
-        if not just_considering_it: #instead actually predicting and registering the score
-            question.predictions[self.id] = prediction
+        if not just_considering_it: #instead actually predicting and registering the score with the forecaster
+            question.predictions[self.id] = true_belief
 
-        return prediction
+        return true_belief
 
     def choose_Qs(self, available_Qs):
 
@@ -142,13 +159,31 @@ class forecaster:
         # The expected value of predicting on this question for this forecaster.
         # Should take into account: edge over crowd + question points
         # TODO
+        
+        
         # Figure out what would have been predicted
-        p = self.predict(question, just_considering_it=True)
+        true_belief = self.predict(question, just_considering_it=True)
         # Figure out score in each possible world
-        EV = (  p   * imp_weighted_score(question.importance, question.score(p, False)) +
-              (1-p) * imp_weighted_score(question.importance, question.score(p, True))    )
-        return EV
-#        return question.points
+        
+        def EV(strategic_prediction, just_considering=True):
+            p = true_belief
+            
+            q = strategic_prediction[0]
+            EV = (  p   * imp_weighted_score(question.importance, question.score(q, False)) +
+                  (1-p) * imp_weighted_score(question.importance, question.score(q, True))    )
+            return EV
+        
+        def neg_EV(strategic_prediction):
+            # minimising the negative because that's how scipy works ¯\_(ツ)_/¯
+            return -EV(strategic_prediction)
+        
+        # https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html#scipy.optimize.minimize
+        if optimisation_mode:
+            prediction = minimize(neg_EV, np.array([true_belief]), method='TNC', options={'xtol': 1e-8, 'disp': True}, bounds=((0.001,0.999),))
+        else:
+            prediction = {"x": true_belief}
+            
+        return EV(prediction["x"], False) #question.points
 
 
 forecasters = [forecaster(sample_epistemics(), sample_values(), sample_humour(), i) for i in range(50)]
@@ -169,7 +204,7 @@ class Q:
 
     def score(self, prediction, flip_outcome=False):
         outcome = abs(self.outcome - int(flip_outcome))
-        return scoring_function(prediction, outcome)
+        return scoring_function(prediction, outcome, function="linear")
 
 rounds = 10
 Qs_per_round = 10
