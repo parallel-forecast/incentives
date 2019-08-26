@@ -13,11 +13,15 @@ Notes by Dave:
 
     * consider changing linear fit for sklearn, less modular, 
       but more features and shorter code
+    * consider a major revision of plots where this program runs
+      the simulation and a separate program does statistics and 
+      data visualization, it is more in line with best practices
 """
 
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt     # for plotting
+from matplotlib.ticker import MaxNLocator      # for integer axis
 from scipy.optimize import minimize
 from scipy.stats import truncnorm
 import math
@@ -294,7 +298,7 @@ if run_simulation:
         book = []
         
         for Q_id in range (len(new_Qs)) :
-            vals = [Q_id, np.round(new_Qs[Q_id].points) ,np.round(new_Qs[Q_id].importance), np.round(new_Qs[Q_id].fun)]
+            vals = [Q_id, np.round(new_Qs[Q_id].points) ,np.round(new_Qs[Q_id].importance), np.round(new_Qs[Q_id].fun), len(new_Qs[Q_id].predictions)]
             
             book.append(vals)
 
@@ -340,7 +344,12 @@ for i in order :
 
 #DISPLAY GRAPHS
 
+# parameters -- change as needed
+
 # Scatter plots and correlations 
+
+# this could all be shortened bVy defining a dictionary with a type name and a then a list of
+# values. could then loop over dictionary instead of writing same code 4*2 times...
 
 qarchive = np.array(qarchive)   # transform into numpy array for easier maniplulation
 
@@ -348,24 +357,112 @@ blockid = 9
 
 qblock = qarchive[blockid]
 
-pts = qblock[:,1]
+pts = qblock[:,1]       # extracts points, importance, fun value and number of predictions
 imps = qblock[:,2]
 funs = qblock[:,3]
+prds = qblock[:,4]
 
-imps_corr = corr(imps,pts)
-imps_linreg = linreg(imps,pts)
-imps_intsec = lin_intersect(imps,pts,imps_linreg)
+impspts_corr = corr(imps,pts)
+impspts_line = linreg(imps,pts)
+impspts_intr = lin_intersect(imps,pts,impspts_line)
+impvals = np.arange( 0.0, np.amax(imps)*1.1, 0.1 )
 
-impvals = np.arange( 0.0, np.amax(imps), 0.1 )
+funspts_corr = corr(funs,pts)
+funspts_line = linreg(funs,pts)
+funspts_intr = lin_intersect(funs,pts,funspts_line)
+funvals = np.arange( 0.0, np.amax(funs)*1.1, 0.1 )
 
-fig2, ax = plt.subplots()
-ax.plot(imps,pts,'bo')
-ax.plot(impvals, imps_linreg*impvals + imps_intsec,'red',linestyle='dashed')
-ax.set(xlabel='importance')
-ax.set(ylabel='points')
-ax.set(title='scatter plot with r = {}'.format(imps_corr))
+funsimp_corr = corr(funs,imps)
+funsimp_line = linreg(funs,imps)
+funsimp_intr = lin_intersect(funs,imps,funsimp_line)
 
-fig2.savefig("scatterplot.png",dpi=600)
+impforcs_corr = corr(imps,prds)
+impforcs_line = linreg(imps,prds)
+impforcs_intr = lin_intersect(imps,prds,impforcs_line)
+
+fig2, axes = plt.subplots(2,2)
+
+axes[0,0].plot(imps,pts,'bo')
+axes[0,0].plot(impvals, impspts_line*impvals + impspts_intr,'red',linestyle='dashed')
+axes[0,0].set(xlabel='importance')
+axes[0,0].set(ylabel='points')
+axes[0,0].set(title='scatter plot with r = {:.2f}'.format(impspts_corr))
+
+axes[0,1].plot(funs,pts,'bo')
+axes[0,1].plot(funvals, funspts_line*funvals + funspts_intr,'red',linestyle='dashed')
+axes[0,1].set(xlabel='funs')
+axes[0,1].set(ylabel='points')
+axes[0,1].set(title='scatter plot with r = {:.2f}'.format(funspts_corr))
+
+axes[1,0].plot(funs,imps,'bo')
+axes[1,0].plot(funvals, funsimp_line*funvals + funsimp_intr,'red',linestyle='dashed')
+axes[1,0].set(xlabel='funs')
+axes[1,0].set(ylabel='importance')
+axes[1,0].set(title='scatter plot with r = {:.2f}'.format(funsimp_corr))
+
+axes[1,1].plot(imps,prds,'bo')
+axes[1,1].plot(impvals, impforcs_line*impvals + impforcs_intr,'red',linestyle='dashed')
+axes[1,1].set(xlabel='importance')
+axes[1,1].set(ylabel='predicitons')
+axes[1,1].set(title='scatter plot with r = {:.2f}'.format(impforcs_corr))
+
+fig2.subplots_adjust(hspace=0.55)
+fig2.subplots_adjust(wspace=0.45)
+fig2.savefig("scatterplot.png",dpi=300)
+
+# correlation over time
+
+impspts_corr = []
+funspts_corr = []
+funsimp_corr = []
+impforcs_corr = []
+
+for blockid in range (rounds) : 
+
+    qblock = qarchive[blockid]
+    
+    pts = qblock[:,1]       # extracts points, importance, fun value and number of predictions
+    imps = qblock[:,2]
+    funs = qblock[:,3]
+    prds = qblock[:,4]
+    
+    impspts_corr.append(corr(imps,pts))
+    funspts_corr.append(corr(funs,pts))
+    funsimp_corr.append(corr(funs,imps))
+    impforcs_corr.append(corr(imps,prds))
+     
+x_axis = np.arange(0.0,rounds,1.0)
+
+fig3, axes = plt.subplots(2,2)
+
+axes[0,0].plot(x_axis,impspts_corr,'bo')
+axes[0,0].set(xlabel='round')
+axes[0,0].xaxis.set_major_locator(MaxNLocator(integer=True))
+axes[0,0].set(ylabel='corr(imps,pts)')
+axes[0,0].set_ylim(-1.1,1.2)
+
+axes[0,1].plot(x_axis,funspts_corr,'bo')
+axes[0,1].set(xlabel='round')
+axes[0,1].xaxis.set_major_locator(MaxNLocator(integer=True))
+axes[0,1].set(ylabel='corr(funs,pts)')
+axes[0,1].set_ylim(-1.1,1.2)
+
+axes[1,0].plot(x_axis,funsimp_corr,'bo')
+axes[1,0].set(xlabel='round')
+axes[1,0].xaxis.set_major_locator(MaxNLocator(integer=True))
+axes[1,0].set(ylabel='corr(funs,imp)')
+axes[1,0].set_ylim(-1.1,1.2)
+
+axes[1,1].plot(x_axis,impforcs_corr,'bo')
+axes[1,1].set(xlabel='round')
+axes[1,1].xaxis.set_major_locator(MaxNLocator(integer=True))
+axes[1,1].set(ylabel='corr(imps,forcs)')
+axes[1,1].set_ylim(-1.1,1.2)
+
+fig3.subplots_adjust(hspace=0.45)
+fig3.subplots_adjust(wspace=0.45)
+fig3.savefig("corrplot.png",dpi=300)
+
 
 # histograms
 
@@ -405,7 +502,7 @@ ax2.set(ylabel="frequency")
 
 fig1.subplots_adjust(hspace=0.45)
 
-fig1.savefig("histogram.png",dpi=600)
+fig1.savefig("histogram.png",dpi=300)
 
 # plt.show() # uncomment for showing plot at end of run
 
